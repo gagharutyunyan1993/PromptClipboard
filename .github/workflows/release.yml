@@ -72,17 +72,17 @@ jobs:
       - name: Decode and inspect signing certificate
         id: cert
         shell: pwsh
+        env:
+          SIGNING_CERT_B64: ${{ secrets.SIGNING_CERTIFICATE }}
+          SIGNING_CERT_PASS: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
         run: |
-          $base64 = @"
-${{ secrets.SIGNING_CERTIFICATE }}
-"@.Trim()
-          if ([string]::IsNullOrWhiteSpace($base64)) {
+          if ([string]::IsNullOrWhiteSpace($env:SIGNING_CERT_B64)) {
             Write-Error "SIGNING_CERTIFICATE secret is empty."
             exit 1
           }
 
           try {
-            $pfxBytes = [Convert]::FromBase64String($base64)
+            $pfxBytes = [Convert]::FromBase64String($env:SIGNING_CERT_B64)
           } catch {
             Write-Error "SIGNING_CERTIFICATE secret is not valid base64."
             exit 1
@@ -90,15 +90,14 @@ ${{ secrets.SIGNING_CERTIFICATE }}
 
           [IO.File]::WriteAllBytes("artifacts/cert.pfx", $pfxBytes)
 
-          $password = "${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}"
-          if ([string]::IsNullOrWhiteSpace($password)) {
+          if ([string]::IsNullOrWhiteSpace($env:SIGNING_CERT_PASS)) {
             Write-Error "SIGNING_CERTIFICATE_PASSWORD secret is empty."
             exit 1
           }
 
           $flags = [Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable `
             -bor [Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
-          $cert = [Security.Cryptography.X509Certificates.X509Certificate2]::new("artifacts/cert.pfx", $password, $flags)
+          $cert = [Security.Cryptography.X509Certificates.X509Certificate2]::new("artifacts/cert.pfx", $env:SIGNING_CERT_PASS, $flags)
 
           if (-not $cert.HasPrivateKey) {
             Write-Error "Decoded PFX does not contain a private key."
@@ -140,6 +139,8 @@ ${{ secrets.SIGNING_CERTIFICATE }}
 
       - name: Create MSIX package
         shell: pwsh
+        env:
+          SIGNING_CERT_PASS: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
         run: |
           # Find makeappx.exe by searching for the actual file
           $found = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\makeappx.exe" -ErrorAction SilentlyContinue |
@@ -161,7 +162,7 @@ ${{ secrets.SIGNING_CERTIFICATE }}
           & $makeAppx pack /d "artifacts/msix-staging" /p $msixPath /o
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          & $signTool sign /fd SHA256 /td SHA256 /f "artifacts/cert.pfx" /p "${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}" /v $msixPath
+          & $signTool sign /fd SHA256 /td SHA256 /f "artifacts/cert.pfx" /p $env:SIGNING_CERT_PASS /v $msixPath
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Create GitHub Release
