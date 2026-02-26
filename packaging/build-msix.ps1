@@ -1,7 +1,9 @@
 param(
     [string]$Version = "1.0.0.0",
     [string]$Configuration = "Release",
-    [string]$OutputDir = "$PSScriptRoot\..\artifacts"
+    [string]$OutputDir = "$PSScriptRoot\..\artifacts",
+    [string]$PfxPath = "$PSScriptRoot\PromptClipboard.pfx",
+    [string]$PfxPassword = $env:SIGNING_CERTIFICATE_PASSWORD
 )
 
 $ErrorActionPreference = "Stop"
@@ -62,24 +64,11 @@ Write-Host "Creating MSIX package..." -ForegroundColor Yellow
 & $makeAppx pack /d $StagingDir /p $msixPath /o
 if ($LASTEXITCODE -ne 0) { throw "MakeAppx failed" }
 
-# 6. Create self-signed certificate and sign
-$certPath = "$OutputDir\PromptClipboard.pfx"
-$cert = New-SelfSignedCertificate `
-    -Type Custom `
-    -Subject "CN=PromptClipboard" `
-    -KeyUsage DigitalSignature `
-    -FriendlyName "Prompt Clipboard Dev" `
-    -CertStoreLocation "Cert:\CurrentUser\My" `
-    -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
-
-$password = ConvertTo-SecureString -String "PromptClipboard2026" -Force -AsPlainText
-Export-PfxCertificate -Cert $cert -FilePath $certPath -Password $password | Out-Null
-
-& $signTool sign /fd SHA256 /a /f $certPath /p "PromptClipboard2026" $msixPath
+# 6. Sign with persistent certificate
+if (-not (Test-Path $PfxPath)) { throw "Certificate not found at $PfxPath. See SETUP_SECRETS.md." }
+if (-not $PfxPassword) { throw "PfxPassword is required. Set env:SIGNING_CERTIFICATE_PASSWORD or pass -PfxPassword." }
+& $signTool sign /fd SHA256 /a /f $PfxPath /p $PfxPassword $msixPath
 if ($LASTEXITCODE -ne 0) { Write-Warning "Signing failed - MSIX will require manual signing" }
-
-# Cleanup cert from store
-Remove-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)" -ErrorAction SilentlyContinue
 
 # 7. Create portable zip
 Write-Host "Creating portable zip..." -ForegroundColor Yellow

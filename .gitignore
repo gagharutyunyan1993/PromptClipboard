@@ -58,6 +58,5 @@ packaging/node_modules/
 packaging/package.json
 packaging/package-lock.json
 
-## Certificates
+## Certificates (private keys only — .cer is public and tracked)
 *.pfx
-*.cer

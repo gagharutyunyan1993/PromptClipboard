@@ -85,20 +85,11 @@ jobs:
           New-Item -ItemType Directory -Path "$staging/Assets" -Force | Out-Null
           Copy-Item "packaging/Assets/*" "$staging/Assets/"
 
-      - name: Create self-signed certificate
+      - name: Decode signing certificate
         shell: pwsh
         run: |
-          $cert = New-SelfSignedCertificate `
-            -Type Custom `
-            -Subject "CN=PromptClipboard" `
-            -KeyUsage DigitalSignature `
-            -FriendlyName "Prompt Clipboard" `
-            -CertStoreLocation "Cert:\CurrentUser\My" `
-            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
-
-          $password = ConvertTo-SecureString -String "msix-build" -Force -AsPlainText
-          Export-PfxCertificate -Cert $cert -FilePath "artifacts/cert.pfx" -Password $password | Out-Null
-          echo "CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+          $pfxBytes = [Convert]::FromBase64String("${{ secrets.SIGNING_CERTIFICATE }}")
+          [IO.File]::WriteAllBytes("artifacts/cert.pfx", $pfxBytes)
 
       - name: Create MSIX package
         shell: pwsh
@@ -122,7 +113,8 @@ jobs:
 
           & $makeAppx pack /d "artifacts/msix-staging" /p $msixPath /o
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & $signTool sign /fd SHA256 /a /f "artifacts/cert.pfx" /p "msix-build" $msixPath
+
+          & $signTool sign /fd SHA256 /a /f "artifacts/cert.pfx" /p "${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}" $msixPath
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Create GitHub Release
@@ -133,3 +125,5 @@ jobs:
           files: |
             artifacts/PromptClipboard-${{ steps.version.outputs.version }}-portable-x64.zip
             artifacts/PromptClipboard-${{ steps.version.outputs.version }}-x64.msix
+            packaging/PromptClipboard.cer
+            packaging/Install.ps1
