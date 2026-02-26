@@ -58,29 +58,17 @@
 
 ## Installation
 
-### MSIX Installer (recommended)
+### Installer (recommended)
 
-1. Download `PromptClipboard-*-x64.msix` from [Releases](../../releases)
-2. Double-click to install
+1. Download `PromptClipboard-*-x64-setup.exe` from [Releases](../../releases)
+2. Run the installer
 3. Find "Prompt Clipboard" in the Start menu
-
-> **Note:** The MSIX is self-signed. Windows may show a warning — click "Install anyway".
-> To remove the warning, import the certificate to Trusted People store before installing.
 
 ### Portable (no install)
 
 1. Download `PromptClipboard-*-portable-x64.zip` from [Releases](../../releases)
 2. Extract anywhere
 3. Run `PromptClipboard.App.exe`
-
-### From Source
-
-```bash
-git clone https://github.com/YOUR_USERNAME/prompt-clipboard.git
-cd prompt-clipboard
-dotnet build
-dotnet run --project src/PromptClipboard.App
-```
 
 ### Requirements
 

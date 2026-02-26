@@ -51,7 +51,6 @@ jobs:
             exit 1
           fi
           echo "version=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "version_quad=${TAG}.0" >> "$GITHUB_OUTPUT"
 
       - name: Publish app
         run: |
@@ -69,101 +68,10 @@ jobs:
         run: |
           Compress-Archive -Path "artifacts/publish/*" -DestinationPath "artifacts/PromptClipboard-${{ steps.version.outputs.version }}-portable-x64.zip"
 
-      - name: Decode and inspect signing certificate
-        id: cert
-        shell: pwsh
-        env:
-          SIGNING_CERT_B64: ${{ secrets.SIGNING_CERTIFICATE }}
-          SIGNING_CERT_PASS: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:SIGNING_CERT_B64)) {
-            Write-Error "SIGNING_CERTIFICATE secret is empty."
-            exit 1
-          }
-
-          try {
-            $pfxBytes = [Convert]::FromBase64String($env:SIGNING_CERT_B64)
-          } catch {
-            Write-Error "SIGNING_CERTIFICATE secret is not valid base64."
-            exit 1
-          }
-
-          [IO.File]::WriteAllBytes("artifacts/cert.pfx", $pfxBytes)
-
-          if ([string]::IsNullOrWhiteSpace($env:SIGNING_CERT_PASS)) {
-            Write-Error "SIGNING_CERTIFICATE_PASSWORD secret is empty."
-            exit 1
-          }
-
-          $flags = [Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable `
-            -bor [Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
-          $cert = [Security.Cryptography.X509Certificates.X509Certificate2]::new("artifacts/cert.pfx", $env:SIGNING_CERT_PASS, $flags)
-
-          if (-not $cert.HasPrivateKey) {
-            Write-Error "Decoded PFX does not contain a private key."
-            exit 1
-          }
-
-          [IO.File]::WriteAllBytes(
-            "artifacts/PromptClipboard.cer",
-            $cert.Export([Security.Cryptography.X509Certificates.X509ContentType]::Cert))
-
-          "cert_subject=$($cert.Subject)" >> $env:GITHUB_OUTPUT
-          "cert_thumbprint=$($cert.Thumbprint)" >> $env:GITHUB_OUTPUT
-          Write-Host "Loaded certificate subject: $($cert.Subject)"
-          Write-Host "Loaded certificate thumbprint: $($cert.Thumbprint)"
-
-      - name: Stage MSIX layout
+      - name: Create installer
         shell: pwsh
         run: |
-          $staging = "artifacts/msix-staging"
-          New-Item -ItemType Directory -Path $staging -Force | Out-Null
-          Copy-Item "artifacts/publish/*" $staging -Recurse
-
-          # Update manifest version and publisher to match signing cert
-          [xml]$manifestXml = Get-Content "packaging/Package.appxmanifest"
-          $ns = [System.Xml.XmlNamespaceManager]::new($manifestXml.NameTable)
-          $ns.AddNamespace("m", "http://schemas.microsoft.com/appx/manifest/foundation/windows10")
-          $identity = $manifestXml.SelectSingleNode("/m:Package/m:Identity", $ns)
-          if (-not $identity) {
-            Write-Error "Identity node not found in Package.appxmanifest."
-            exit 1
-          }
-          $identity.SetAttribute("Version", "${{ steps.version.outputs.version_quad }}")
-          $identity.SetAttribute("Publisher", "${{ steps.cert.outputs.cert_subject }}")
-          $manifestXml.Save("$staging/AppxManifest.xml")
-
-          # Copy assets
-          New-Item -ItemType Directory -Path "$staging/Assets" -Force | Out-Null
-          Copy-Item "packaging/Assets/*" "$staging/Assets/"
-
-      - name: Create MSIX package
-        shell: pwsh
-        env:
-          SIGNING_CERT_PASS: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
-        run: |
-          # Find makeappx.exe by searching for the actual file
-          $found = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\makeappx.exe" -ErrorAction SilentlyContinue |
-            Sort-Object { [version]($_.Directory.Parent.Name) } -Descending |
-            Select-Object -First 1
-
-          if (-not $found) {
-            Write-Error "makeappx.exe not found. Available SDK dirs:"
-            Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Directory | ForEach-Object { Write-Host "  $_" }
-            exit 1
-          }
-
-          $makeAppx = $found.FullName
-          $signTool = Join-Path $found.Directory.FullName "signtool.exe"
-          Write-Host "Using SDK tools from: $($found.Directory.FullName)"
-
-          $msixPath = "artifacts/PromptClipboard-${{ steps.version.outputs.version }}-x64.msix"
-
-          & $makeAppx pack /d "artifacts/msix-staging" /p $msixPath /o
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-          & $signTool sign /fd SHA256 /td SHA256 /f "artifacts/cert.pfx" /p $env:SIGNING_CERT_PASS /v $msixPath
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          iscc /DAppVersion="${{ steps.version.outputs.version }}" packaging/installer.iss
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -172,6 +80,4 @@ jobs:
           generate_release_notes: true
           files: |
             artifacts/PromptClipboard-${{ steps.version.outputs.version }}-portable-x64.zip
-            artifacts/PromptClipboard-${{ steps.version.outputs.version }}-x64.msix
-            artifacts/PromptClipboard.cer
-            packaging/Install.ps1
+            artifacts/PromptClipboard-${{ steps.version.outputs.version }}-x64-setup.exe
