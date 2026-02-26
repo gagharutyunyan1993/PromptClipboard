@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test --no-build --configuration Release --verbosity normal
+
+  package:
+    needs: build-and-test
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          echo "version=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version_quad=${TAG}.0" >> "$GITHUB_OUTPUT"
+
+      - name: Publish app
+        run: |
+          dotnet publish src/PromptClipboard.App/PromptClipboard.App.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained `
+            -o artifacts/publish `
+            -p:PublishSingleFile=false `
+            -p:DebugType=none `
+            -p:DebugSymbols=false
+
+      - name: Create portable zip
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "artifacts/publish/*" -DestinationPath "artifacts/PromptClipboard-${{ steps.version.outputs.version }}-portable-x64.zip"
+
+      - name: Stage MSIX layout
+        shell: pwsh
+        run: |
+          $staging = "artifacts/msix-staging"
+          New-Item -ItemType Directory -Path $staging -Force | Out-Null
+          Copy-Item "artifacts/publish/*" $staging -Recurse
+
+          # Update manifest version
+          $manifest = Get-Content "packaging/Package.appxmanifest" -Raw
+          $manifest = $manifest -replace 'Version="1\.0\.0\.0"', "Version=`"${{ steps.version.outputs.version_quad }}`""
+          Set-Content "$staging/AppxManifest.xml" $manifest -Encoding UTF8
+
+          # Copy assets
+          New-Item -ItemType Directory -Path "$staging/Assets" -Force | Out-Null
+          Copy-Item "packaging/Assets/*" "$staging/Assets/"
+
+      - name: Create self-signed certificate
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate `
+            -Type Custom `
+            -Subject "CN=PromptClipboard" `
+            -KeyUsage DigitalSignature `
+            -FriendlyName "Prompt Clipboard" `
+            -CertStoreLocation "Cert:\CurrentUser\My" `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+
+          $password = ConvertTo-SecureString -String "msix-build" -Force -AsPlainText
+          Export-PfxCertificate -Cert $cert -FilePath "artifacts/cert.pfx" -Password $password | Out-Null
+          echo "CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+
+      - name: Create MSIX package
+        shell: pwsh
+        run: |
+          $sdkDir = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\10.*\x64" -Directory |
+            Sort-Object Name -Descending | Select-Object -First 1
+          $makeAppx = Join-Path $sdkDir.FullName "makeappx.exe"
+          $signTool = Join-Path $sdkDir.FullName "signtool.exe"
+
+          $msixPath = "artifacts/PromptClipboard-${{ steps.version.outputs.version }}-x64.msix"
+
+          & $makeAppx pack /d "artifacts/msix-staging" /p $msixPath /o
+          & $signTool sign /fd SHA256 /a /f "artifacts/cert.pfx" /p "msix-build" $msixPath
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Prompt Clipboard v${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            artifacts/PromptClipboard-${{ steps.version.outputs.version }}-portable-x64.zip
+            artifacts/PromptClipboard-${{ steps.version.outputs.version }}-x64.msix

@@ -1,0 +1,63 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.vs/
+.vs/
+
+## IDE
+.idea/
+*.sln.DotSettings.user
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+build/
+bld/
+
+## NuGet
+*.nupkg
+**/packages/*
+project.lock.json
+
+## OS
+Thumbs.db
+*.DS_Store
+desktop.ini
+
+## App data (local dev)
+*.db
+*.db-journal
+*.db-wal
+logs/
+
+## Secrets
+*.env
+appsettings.*.json
+!appsettings.json
+
+## Claude Code (keep .claude/rules/, ignore the rest)
+.claude/skills/
+.claude/memory/
+.claude/settings.local.json
+
+## Internal planning docs
+memoized-hugging-flame.md
+instruction.txt
+
+## Publish output
+publish/
+artifacts/
+
+## Packaging (node_modules for asset generation)
+packaging/node_modules/
+packaging/package.json
+packaging/package-lock.json
+
+## Certificates
+*.pfx
+*.cer
