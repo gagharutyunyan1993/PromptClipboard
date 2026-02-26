@@ -44,6 +44,8 @@ appsettings.*.json
 .claude/skills/
 .claude/memory/
 .claude/settings.local.json
+AGENTS.md
+CLAUDE.md
 
 ## Internal planning docs
 memoized-hugging-flame.md

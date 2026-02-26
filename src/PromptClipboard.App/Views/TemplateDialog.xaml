@@ -1,7 +1,7 @@
 <Window x:Class="PromptClipboard.App.Views.TemplateDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Заполнить шаблон"
+        Title="Fill template"
         Width="400" SizeToContent="Height"
         WindowStartupLocation="CenterScreen"
         Topmost="True"
@@ -28,7 +28,7 @@
         </ItemsControl>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-            <Button Content="Отмена" Command="{Binding CancelCommand}"
+            <Button Content="Cancel" Command="{Binding CancelCommand}"
                    Background="#374151" Foreground="White" BorderThickness="0"
                    Padding="16,8" Margin="0,0,8,0" Cursor="Hand">
                 <Button.Template>
@@ -39,7 +39,7 @@
                     </ControlTemplate>
                 </Button.Template>
             </Button>
-            <Button Content="Вставить" Command="{Binding ConfirmCommand}"
+            <Button Content="Insert" Command="{Binding ConfirmCommand}"
                    Background="#6366f1" Foreground="White" BorderThickness="0"
                    Padding="16,8" Cursor="Hand">
                 <Button.Template>

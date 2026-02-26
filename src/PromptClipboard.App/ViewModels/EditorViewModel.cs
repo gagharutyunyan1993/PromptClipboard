@@ -10,6 +10,7 @@ public partial class EditorViewModel : ObservableObject
     private readonly IPromptRepository _repository;
     private long _promptId;
     private bool _isNew;
+    private Prompt? _original;
 
     [ObservableProperty]
     private string _title = string.Empty;
@@ -30,7 +31,7 @@ public partial class EditorViewModel : ObservableObject
     private bool _isPinned;
 
     [ObservableProperty]
-    private string _windowTitle = "Новый промпт";
+    private string _windowTitle = "New prompt";
 
     public event Action<bool>? RequestClose;
 
@@ -43,7 +44,7 @@ public partial class EditorViewModel : ObservableObject
     {
         _isNew = true;
         _promptId = 0;
-        WindowTitle = "Новый промпт";
+        WindowTitle = "New prompt";
         Title = string.Empty;
         Body = string.Empty;
         TagsInput = string.Empty;
@@ -56,7 +57,8 @@ public partial class EditorViewModel : ObservableObject
     {
         _isNew = false;
         _promptId = prompt.Id;
-        WindowTitle = "Редактировать промпт";
+        _original = prompt;
+        WindowTitle = "Edit prompt";
         Title = prompt.Title;
         Body = prompt.Body;
         TagsInput = string.Join(", ", prompt.GetTags());
@@ -71,28 +73,33 @@ public partial class EditorViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(Title) || string.IsNullOrWhiteSpace(Body))
             return;
 
-        var prompt = new Prompt
-        {
-            Id = _promptId,
-            Title = Title.Trim(),
-            Body = Body,
-            Folder = Folder.Trim(),
-            Lang = Lang.Trim(),
-            IsPinned = IsPinned,
-            UpdatedAt = DateTime.UtcNow
-        };
-
         var tags = TagsInput.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        prompt.SetTags(tags);
 
         if (_isNew)
         {
-            prompt.CreatedAt = DateTime.UtcNow;
+            var prompt = new Prompt
+            {
+                Title = Title.Trim(),
+                Body = Body,
+                Folder = Folder.Trim(),
+                Lang = Lang.Trim(),
+                IsPinned = IsPinned,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            prompt.SetTags(tags);
             await _repository.CreateAsync(prompt);
         }
         else
         {
-            await _repository.UpdateAsync(prompt);
+            _original!.Title = Title.Trim();
+            _original.Body = Body;
+            _original.Folder = Folder.Trim();
+            _original.Lang = Lang.Trim();
+            _original.IsPinned = IsPinned;
+            _original.UpdatedAt = DateTime.UtcNow;
+            _original.SetTags(tags);
+            await _repository.UpdateAsync(_original);
         }
 
         RequestClose?.Invoke(true);

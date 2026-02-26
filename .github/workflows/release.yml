@@ -46,6 +46,10 @@ jobs:
         shell: bash
         run: |
           TAG="${GITHUB_REF#refs/tags/v}"
+          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag must be in format v#.#.# (e.g. v1.0.0)"
+            exit 1
+          fi
           echo "version=${TAG}" >> "$GITHUB_OUTPUT"
           echo "version_quad=${TAG}.0" >> "$GITHUB_OUTPUT"
 

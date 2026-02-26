@@ -131,7 +131,10 @@ public sealed class Win32ClipboardService : IClipboardService
 
             var ptr = NativeMethods.GlobalLock(hGlobal);
             if (ptr == IntPtr.Zero)
+            {
+                NativeMethods.GlobalFree(hGlobal);
                 return false;
+            }
 
             try
             {
@@ -145,8 +148,13 @@ public sealed class Win32ClipboardService : IClipboardService
             }
 
             var result = NativeMethods.SetClipboardData(NativeMethods.CF_UNICODETEXT, hGlobal);
-            // If SetClipboardData succeeds, the system owns hGlobal — don't free it
-            return result != IntPtr.Zero;
+            if (result == IntPtr.Zero)
+            {
+                // SetClipboardData failed — we still own hGlobal, must free it
+                NativeMethods.GlobalFree(hGlobal);
+                return false;
+            }
+            return true;
         }
         finally
         {

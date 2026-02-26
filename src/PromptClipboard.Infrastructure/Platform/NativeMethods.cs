@@ -114,6 +114,9 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool GlobalUnlock(IntPtr hMem);
 
+    [LibraryImport("kernel32.dll")]
+    public static partial IntPtr GlobalFree(IntPtr hMem);
+
     public const uint CF_UNICODETEXT = 13;
     public const uint GMEM_MOVEABLE = 0x0002;
 

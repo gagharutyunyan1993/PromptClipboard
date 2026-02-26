@@ -1,0 +1,10 @@
+# Auto-detect text files and enforce CRLF line endings (matches .editorconfig)
+* text=auto eol=crlf
+
+# Explicitly mark known binary formats
+*.png binary
+*.ico binary
+*.gif binary
+*.jpg binary
+*.jpeg binary
+*.db binary

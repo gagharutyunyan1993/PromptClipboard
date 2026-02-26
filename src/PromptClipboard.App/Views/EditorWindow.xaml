@@ -19,7 +19,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Заголовок" Margin="0,0,0,4" FontSize="12" Foreground="#94a3b8"/>
+        <TextBlock Grid.Row="0" Text="Title" Margin="0,0,0,4" FontSize="12" Foreground="#94a3b8"/>
         <TextBox Grid.Row="1" Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
                 Background="#242540" Foreground="#e2e8f0" BorderBrush="#3d3e6b"
                 Padding="8" Margin="0,0,0,12" FontSize="14"/>
@@ -30,7 +30,7 @@
                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="13"
                 FontFamily="Consolas"/>
 
-        <TextBlock Grid.Row="3" Text="Теги (через запятую)" Margin="0,0,0,4" FontSize="12" Foreground="#94a3b8"/>
+        <TextBlock Grid.Row="3" Text="Tags (comma-separated)" Margin="0,0,0,4" FontSize="12" Foreground="#94a3b8"/>
         <TextBox Grid.Row="4" Text="{Binding TagsInput, UpdateSourceTrigger=PropertyChanged}"
                 Background="#242540" Foreground="#e2e8f0" BorderBrush="#3d3e6b"
                 Padding="8" Margin="0,0,0,12" FontSize="13"/>
@@ -42,21 +42,21 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                <TextBlock Text="Папка" Margin="0,0,0,4" FontSize="12" Foreground="#94a3b8"/>
+                <TextBlock Text="Folder" Margin="0,0,0,4" FontSize="12" Foreground="#94a3b8"/>
                 <TextBox Text="{Binding Folder, UpdateSourceTrigger=PropertyChanged}"
                         Background="#242540" Foreground="#e2e8f0" BorderBrush="#3d3e6b" Padding="8" FontSize="13"/>
             </StackPanel>
             <StackPanel Grid.Column="1" Margin="0,0,8,0">
-                <TextBlock Text="Язык" Margin="0,0,0,4" FontSize="12" Foreground="#94a3b8"/>
+                <TextBlock Text="Language" Margin="0,0,0,4" FontSize="12" Foreground="#94a3b8"/>
                 <TextBox Text="{Binding Lang, UpdateSourceTrigger=PropertyChanged}"
                         Background="#242540" Foreground="#e2e8f0" BorderBrush="#3d3e6b" Padding="8" FontSize="13"/>
             </StackPanel>
-            <CheckBox Grid.Column="2" Content="Закреплён" IsChecked="{Binding IsPinned}"
+            <CheckBox Grid.Column="2" Content="Pinned" IsChecked="{Binding IsPinned}"
                      Foreground="#e2e8f0" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
         </Grid>
 
         <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-            <Button Content="Удалить" Command="{Binding DeleteCommand}"
+            <Button Content="Delete" Command="{Binding DeleteCommand}"
                    Background="#dc2626" Foreground="White" BorderThickness="0"
                    Padding="16,8" Margin="0,0,8,0" Cursor="Hand">
                 <Button.Template>
@@ -67,7 +67,7 @@
                     </ControlTemplate>
                 </Button.Template>
             </Button>
-            <Button Content="Отмена" Command="{Binding CancelCommand}"
+            <Button Content="Cancel" Command="{Binding CancelCommand}"
                    Background="#374151" Foreground="White" BorderThickness="0"
                    Padding="16,8" Margin="0,0,8,0" Cursor="Hand">
                 <Button.Template>
@@ -78,7 +78,7 @@
                     </ControlTemplate>
                 </Button.Template>
             </Button>
-            <Button Content="Сохранить" Command="{Binding SaveCommand}"
+            <Button Content="Save" Command="{Binding SaveCommand}"
                    Background="#6366f1" Foreground="White" BorderThickness="0"
                    Padding="16,8" Cursor="Hand">
                 <Button.Template>

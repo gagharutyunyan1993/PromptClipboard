@@ -47,7 +47,7 @@ public sealed class SqlitePromptRepository : IPromptRepository
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
-        if (hasQuery) cmd.Parameters.AddWithValue("@query", query);
+        if (hasQuery) cmd.Parameters.AddWithValue("@query", SanitizeFtsQuery(query));
         if (hasTag) cmd.Parameters.AddWithValue("@tag", tagFilter!.ToLowerInvariant());
         if (hasLang) cmd.Parameters.AddWithValue("@lang", langFilter!);
 
@@ -183,6 +183,12 @@ public sealed class SqlitePromptRepository : IPromptRepository
             }
         }, ct);
         return prompts;
+    }
+
+    private static string SanitizeFtsQuery(string query)
+    {
+        var tokens = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return string.Join(" ", tokens.Select(t => "\"" + t.Replace("\"", "\"\"") + "\""));
     }
 
     private static Prompt MapPrompt(SqliteDataReader r)

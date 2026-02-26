@@ -5,12 +5,15 @@ using CommunityToolkit.Mvvm.Input;
 using PromptClipboard.Application.Services;
 using PromptClipboard.Domain.Entities;
 using PromptClipboard.Domain.Interfaces;
+using Serilog;
 using System.Collections.ObjectModel;
 
 public partial class PaletteViewModel : ObservableObject
 {
     private readonly SearchRankingService _searchService;
     private readonly IPromptRepository _repository;
+    private readonly ILogger _log;
+    private readonly int _debounceMs;
     private CancellationTokenSource? _searchCts;
 
     [ObservableProperty]
@@ -39,10 +42,12 @@ public partial class PaletteViewModel : ObservableObject
     public event Action<Prompt>? PinToggleRequested;
     public event Action<Prompt>? DeleteRequested;
 
-    public PaletteViewModel(SearchRankingService searchService, IPromptRepository repository)
+    public PaletteViewModel(SearchRankingService searchService, IPromptRepository repository, ILogger log, int debounceMs = 150)
     {
         _searchService = searchService;
         _repository = repository;
+        _log = log;
+        _debounceMs = debounceMs;
     }
 
     partial void OnSearchTextChanged(string value)
@@ -58,10 +63,17 @@ public partial class PaletteViewModel : ObservableObject
 
         try
         {
-            await Task.Delay(150, token);
+            await Task.Delay(_debounceMs, token);
             await LoadPromptsAsync(query, token);
         }
         catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _log.Error(ex, "Search failed for query '{Query}'", query);
+            Prompts.Clear();
+            SelectedIndex = -1;
+            SelectedPrompt = null;
+        }
     }
 
     public async Task LoadPromptsAsync(string? query = null, CancellationToken ct = default)

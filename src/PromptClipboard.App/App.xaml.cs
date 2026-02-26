@@ -4,6 +4,7 @@ using System.Windows.Interop;
 using System.Windows.Threading;
 using Hardcodet.Wpf.TaskbarNotification;
 using Microsoft.Extensions.DependencyInjection;
+using PromptClipboard.App.Handlers;
 using PromptClipboard.App.ViewModels;
 using PromptClipboard.App.Views;
 using PromptClipboard.Application.Services;
@@ -24,6 +25,7 @@ public partial class App : System.Windows.Application
     private Win32HotkeyService? _hotkeyService;
     private ILogger? _log;
     private Mutex? _singleInstanceMutex;
+    private bool _ownsMutex;
 
     private static readonly string AppDataPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -40,9 +42,10 @@ public partial class App : System.Windows.Application
 
         // Single instance check
         _singleInstanceMutex = new Mutex(true, "Global\\PromptClipboard_SingleInstance", out var isNew);
+        _ownsMutex = isNew;
         if (!isNew)
         {
-            MessageBox.Show("Prompt Clipboard уже запущен.", "Prompt Clipboard", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show("Prompt Clipboard is already running.", "Prompt Clipboard", MessageBoxButton.OK, MessageBoxImage.Information);
             Shutdown();
             return;
         }
@@ -71,7 +74,8 @@ public partial class App : System.Windows.Application
             migrationRunner.RunAll();
 
             // Seed data
-            await SeedDataAsync();
+            await PromptSeeder.SeedIfEmptyAsync(
+                _services.GetRequiredService<IPromptRepository>(), _log);
 
             // Palette window
             _paletteWindow = new PaletteWindow();
@@ -211,13 +215,13 @@ public partial class App : System.Windows.Application
 
         var contextMenu = new System.Windows.Controls.ContextMenu();
 
-        var showItem = new System.Windows.Controls.MenuItem { Header = "Показать палитру" };
+        var showItem = new System.Windows.Controls.MenuItem { Header = "Show palette" };
         showItem.Click += (_, _) => ShowPaletteFromTray();
         contextMenu.Items.Add(showItem);
 
         contextMenu.Items.Add(new System.Windows.Controls.Separator());
 
-        var exitItem = new System.Windows.Controls.MenuItem { Header = "Выход" };
+        var exitItem = new System.Windows.Controls.MenuItem { Header = "Exit" };
         exitItem.Click += (_, _) => ExitApplication();
         contextMenu.Items.Add(exitItem);
 
@@ -277,147 +281,6 @@ public partial class App : System.Windows.Application
         {
             _log?.Error(ex, "ShowPalette failed");
         }
-    }
-
-    // ── Paste ──────────────────────────────────────────────────────────
-
-    private async void OnPasteRequested(Prompt prompt)
-    {
-        _log?.Information("OnPasteRequested: prompt={Id} '{Title}'", prompt.Id, prompt.Title);
-        if (_services == null || _paletteWindow == null) return;
-
-        try
-        {
-            var vm = _paletteWindow.ViewModel;
-            var templateEngine = _services.GetRequiredService<TemplateEngine>();
-            var resolvedText = prompt.Body;
-
-            if (templateEngine.HasVariables(prompt.Body))
-            {
-                _log?.Debug("Prompt has template variables, showing dialog");
-                var variables = templateEngine.ExtractVariables(prompt.Body);
-                var dialogVm = new TemplateDialogViewModel();
-                dialogVm.LoadVariables(variables);
-
-                var dialog = new TemplateDialog();
-                dialog.Initialize(dialogVm);
-
-                _paletteWindow.SuppressDeactivate(true);
-                try
-                {
-                    dialog.Owner = _paletteWindow;
-                    if (dialog.ShowDialog() != true)
-                    {
-                        _log?.Debug("Template dialog cancelled");
-                        return;
-                    }
-                }
-                finally
-                {
-                    _paletteWindow.SuppressDeactivate(false);
-                }
-
-                resolvedText = templateEngine.Resolve(prompt.Body, dialogVm.GetValues());
-            }
-
-            _paletteWindow.HideWindow();
-
-            var pasteUseCase = _services.GetRequiredService<PastePromptUseCase>();
-            var settings = _services.GetRequiredService<ISettingsService>().Load();
-            pasteUseCase.PrePasteDelayMs = settings.PasteDelayMs;
-            pasteUseCase.PostPasteDelayMs = settings.RestoreDelayMs;
-
-            var ilChecker = _services.GetRequiredService<IntegrityLevelChecker>();
-            var currentIL = ilChecker.GetCurrentProcessIntegrityLevel();
-
-            var focusTracker = _services.GetRequiredService<IFocusTracker>();
-            pasteUseCase.PasteFailed += OnPasteFailed;
-            vm.IsPasting = true;
-            try
-            {
-                await pasteUseCase.ExecuteAsync(
-                    prompt.Id,
-                    resolvedText,
-                    () => _paletteWindow?.HideWindow(),
-                    () => focusTracker.GetCurrentForegroundWindow(),
-                    hwnd => focusTracker.IsWindowValid(hwnd),
-                    hwnd => ilChecker.GetProcessIntegrityLevel(hwnd),
-                    currentIL);
-                _log?.Information("Paste completed for prompt {Id}", prompt.Id);
-            }
-            finally
-            {
-                vm.IsPasting = false;
-                pasteUseCase.PasteFailed -= OnPasteFailed;
-            }
-        }
-        catch (Exception ex)
-        {
-            _log?.Error(ex, "OnPasteRequested failed for prompt {Id}", prompt.Id);
-        }
-    }
-
-    private async void OnPasteAsTextRequested(Prompt prompt)
-    {
-        _log?.Information("OnPasteAsTextRequested: prompt={Id} '{Title}'", prompt.Id, prompt.Title);
-        if (_services == null || _paletteWindow == null) return;
-
-        try
-        {
-            var templateEngine = _services.GetRequiredService<TemplateEngine>();
-            var resolvedText = prompt.Body;
-
-            if (templateEngine.HasVariables(prompt.Body))
-            {
-                _log?.Debug("PasteAsText: prompt has template variables");
-                var variables = templateEngine.ExtractVariables(prompt.Body);
-                var dialogVm = new TemplateDialogViewModel();
-                dialogVm.LoadVariables(variables);
-
-                var dialog = new TemplateDialog();
-                dialog.Initialize(dialogVm);
-
-                _paletteWindow.SuppressDeactivate(true);
-                try
-                {
-                    dialog.Owner = _paletteWindow;
-                    if (dialog.ShowDialog() != true)
-                    {
-                        _log?.Debug("PasteAsText: template dialog cancelled");
-                        return;
-                    }
-                }
-                finally
-                {
-                    _paletteWindow.SuppressDeactivate(false);
-                }
-
-                resolvedText = templateEngine.Resolve(prompt.Body, dialogVm.GetValues());
-            }
-
-            _paletteWindow.HideWindow();
-
-            var clipService = _services.GetRequiredService<IClipboardService>();
-            clipService.SetTextWithMarker(resolvedText, Guid.NewGuid());
-            _log?.Information("PasteAsText: text copied to clipboard for prompt {Id}", prompt.Id);
-            _trayIcon?.ShowBalloonTip("Prompt Clipboard", "Текст скопирован в буфер обмена", BalloonIcon.Info);
-
-            var repo = _services.GetRequiredService<IPromptRepository>();
-            await repo.MarkUsedAsync(prompt.Id, DateTime.UtcNow);
-        }
-        catch (Exception ex)
-        {
-            _log?.Error(ex, "OnPasteAsTextRequested failed for prompt {Id}", prompt.Id);
-        }
-    }
-
-    private void OnPasteFailed(string reason)
-    {
-        _log?.Warning("Paste failed: {Reason}", reason);
-        Dispatcher.Invoke(() =>
-        {
-            _trayIcon?.ShowBalloonTip("Prompt Clipboard", reason, BalloonIcon.Warning);
-        });
     }
 
     // ── Edit / Create ──────────────────────────────────────────────────
@@ -495,7 +358,7 @@ public partial class App : System.Windows.Application
         {
             var clipService = _services!.GetRequiredService<IClipboardService>();
             clipService.SetTextWithMarker(prompt.Body, Guid.NewGuid());
-            _trayIcon?.ShowBalloonTip("Prompt Clipboard", "Промпт скопирован в буфер обмена", BalloonIcon.Info);
+            _trayIcon?.ShowBalloonTip("Prompt Clipboard", "Prompt copied to clipboard", BalloonIcon.Info);
         }
         catch (Exception ex)
         {
@@ -534,7 +397,7 @@ public partial class App : System.Windows.Application
             try
             {
                 var result = MessageBox.Show(
-                    $"Удалить промпт \"{prompt.Title}\"?",
+                    $"Delete prompt \"{prompt.Title}\"?",
                     "Prompt Clipboard",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question);
@@ -559,66 +422,11 @@ public partial class App : System.Windows.Application
         }
     }
 
-    // ── Seed ───────────────────────────────────────────────────────────
-
-    private async Task SeedDataAsync()
-    {
-        var repo = _services!.GetRequiredService<IPromptRepository>();
-        var count = await repo.GetCountAsync();
-        if (count > 0) return;
-
-        _log?.Information("Seeding initial prompts...");
-
-        var seeds = new List<Prompt>
-        {
-            CreateSeed("Email: Профессиональный ответ",
-                "Напиши профессиональный ответ на email по теме \"{{topic}}\". Тон: {{tone|default=вежливый и деловой}}. Целевая аудитория: {{audience|default=коллеги}}.",
-                ["email", "работа"], isPinned: true),
-            CreateSeed("Jira: Описание задачи",
-                "**Задача:** {{task_name}} **Описание:** {{description}} **Критерии приёмки:** - {{criteria_1}} - {{criteria_2}} - {{criteria_3}} **Технические детали:** {{tech_details}}",
-                ["jira", "работа", "задачи"], isPinned: true),
-            CreateSeed("Код: Ревью комментарий",
-                "Предложение по улучшению: {{suggestion}} Причина: {{reason}} Пример: ```{{example}}```",
-                ["код", "ревью"]),
-            CreateSeed("Анализ кода",
-                "Проанализируй следующий код и выдели: 1. Потенциальные проблемы 2. Возможности для оптимизации 3. Улучшения читаемости Код: {{code}}",
-                ["код", "анализ"]),
-            CreateSeed("Перевод текста",
-                "Переведи следующий текст на {{target_lang|default=английский}} язык, сохраняя стиль и тон оригинала:\n\n{{text}}",
-                ["перевод", "текст"]),
-        };
-
-        foreach (var seed in seeds)
-            await repo.CreateAsync(seed);
-
-        _log?.Information("Seeded {Count} prompts", seeds.Count);
-    }
-
-    private static Prompt CreateSeed(string title, string body, List<string> tags, bool isPinned = false)
-    {
-        var p = new Prompt
-        {
-            Title = title,
-            Body = body,
-            IsPinned = isPinned,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-        p.SetTags(tags);
-        return p;
-    }
-
     // ── Shutdown ───────────────────────────────────────────────────────
 
     private void ExitApplication()
     {
         _log?.Information("=== Prompt Clipboard shutting down (user exit) ===");
-        _hotkeyService?.Dispose();
-        _trayIcon?.Dispose();
-        _services?.Dispose();
-        _singleInstanceMutex?.ReleaseMutex();
-        _singleInstanceMutex?.Dispose();
-        Log.CloseAndFlush();
         Shutdown();
     }
 
@@ -628,7 +436,11 @@ public partial class App : System.Windows.Application
         _hotkeyService?.Dispose();
         _trayIcon?.Dispose();
         _services?.Dispose();
-        _singleInstanceMutex?.ReleaseMutex();
+        if (_ownsMutex)
+        {
+            _singleInstanceMutex?.ReleaseMutex();
+            _ownsMutex = false;
+        }
         _singleInstanceMutex?.Dispose();
         Log.CloseAndFlush();
         base.OnExit(e);

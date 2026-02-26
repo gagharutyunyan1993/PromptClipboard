@@ -7,7 +7,7 @@
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
     <Product>Prompt Clipboard</Product>
     <AssemblyTitle>Prompt Clipboard</AssemblyTitle>
-    <Description>Менеджер промптов с быстрым доступом по горячей клавише</Description>
+    <Description>Prompt manager with quick global hotkey access</Description>
   </PropertyGroup>
 
   <ItemGroup>
