@@ -198,10 +198,16 @@ jobs:
               if (!(Test-Path $dbPath)) { throw "Database not created at $dbPath" }
 
               # 5b. Verify actual tables exist (not just file presence)
-              $tables = & sqlite3 $dbPath ".tables"
+              $tables = & sqlite3 $dbPath "SELECT name FROM sqlite_master WHERE type='table';"
               if ($LASTEXITCODE -ne 0) { throw "sqlite3 not found or failed. Install sqlite3 on self-hosted runner." }
-              if ($tables -notmatch "prompts") { throw "Table 'prompts' not found. Tables: $tables" }
-              if ($tables -notmatch "schema_migrations") { throw "Table 'schema_migrations' not found. Tables: $tables" }
+
+              $tableList = @($tables | ForEach-Object { $_.ToString().Trim() } | Where-Object { $_ -ne "" })
+              if (-not ($tableList -contains "prompts")) {
+                  throw "Table 'prompts' not found. Tables: $($tableList -join ', ')"
+              }
+              if (-not ($tableList -contains "schema_migrations")) {
+                  throw "Table 'schema_migrations' not found. Tables: $($tableList -join ', ')"
+              }
 
               # 6. Clean shutdown
               $proc.CloseMainWindow() | Out-Null
