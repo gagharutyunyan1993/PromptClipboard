@@ -15,7 +15,6 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 SetupIconFile=..\src\PromptClipboard.App\Resources\app.ico
 PrivilegesRequired=lowest
-PrivilegesRequiredOverridesAllowed=none
 WizardStyle=modern
 DisableProgramGroupPage=yes
 DisableDirPage=yes
