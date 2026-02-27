@@ -193,13 +193,15 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
                             <!-- Title Row -->
                             <DockPanel Grid.Row="0">
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                                     <Button Content="&#xE734;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                                           Foreground="{Binding IsPinned, Converter={x:Static local:Converters.BoolToPinColorConverter}}"
+                                           Foreground="{Binding Prompt.IsPinned, Converter={x:Static local:Converters.BoolToPinColorConverter}}"
                                            Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="4" Margin="2,0"
                                            Command="{Binding DataContext.TogglePinCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
                                            CommandParameter="{Binding}"
@@ -222,7 +224,7 @@
                                            ToolTip="Delete"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Title}" Foreground="{StaticResource TextBrush}"
+                                    <TextBlock Text="{Binding Prompt.Title}" Foreground="{StaticResource TextBrush}"
                                               FontWeight="SemiBold" FontSize="14" Margin="0,0,8,0"/>
                                     <Border Background="{StaticResource BadgeBrush}" CornerRadius="4" Padding="6,2"
                                            Visibility="Collapsed" x:Name="TemplateBadge">
@@ -232,14 +234,46 @@
                             </DockPanel>
 
                             <!-- Body Preview -->
-                            <TextBlock Grid.Row="1" Text="{Binding Body}" Foreground="{StaticResource TextDimBrush}"
+                            <TextBlock x:Name="BodyPreview" Grid.Row="1" Text="{Binding PreviewText}"
+                                      Foreground="{StaticResource TextDimBrush}"
                                       FontSize="12" TextTrimming="CharacterEllipsis" MaxHeight="36"
-                                      Margin="0,4,0,4" TextWrapping="Wrap"/>
+                                      Margin="0,4,0,0" TextWrapping="Wrap"/>
+
+                            <!-- Meta Label (visible only for long body when collapsed) -->
+                            <TextBlock x:Name="MetaLabel" Grid.Row="2" Text="{Binding MetaLabel}"
+                                      Foreground="{StaticResource TextDimBrush}" FontSize="11"
+                                      FontStyle="Italic" Opacity="0.7"
+                                      Margin="0,2,0,0" Visibility="Collapsed"/>
+
+                            <!-- Toggle Button (visible only for long body) -->
+                            <Button x:Name="ToggleButton" Grid.Row="3"
+                                   Content="{Binding ToggleLabel}"
+                                   Command="{Binding ToggleExpandedCommand}"
+                                   Visibility="{Binding IsLongBody, Converter={x:Static local:Converters.BoolToVisibilityConverter}}"
+                                   Foreground="{StaticResource AccentBrush}" Background="Transparent"
+                                   BorderThickness="0" Cursor="Hand" Padding="0,2"
+                                   Margin="0,2,0,0" FontSize="11" HorizontalAlignment="Left">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <TextBlock x:Name="BtnText"
+                                                  Text="{TemplateBinding Content}"
+                                                  Foreground="{TemplateBinding Foreground}"
+                                                  FontSize="{TemplateBinding FontSize}"
+                                                  Margin="{TemplateBinding Padding}"/>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="BtnText" Property="TextDecorations" Value="Underline"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
 
                             <!-- Tags -->
-                            <ItemsControl Grid.Row="2"
-                                         ItemsSource="{Binding TagsJson, Converter={x:Static local:Converters.JsonToTagListConverter}}"
-                                         Visibility="{Binding TagsJson, Converter={x:Static local:Converters.TagsNotEmptyConverter}}">
+                            <ItemsControl Grid.Row="4"
+                                         ItemsSource="{Binding Prompt.TagsJson, Converter={x:Static local:Converters.JsonToTagListConverter}}"
+                                         Visibility="{Binding Prompt.TagsJson, Converter={x:Static local:Converters.TagsNotEmptyConverter}}"
+                                         Margin="0,4,0,0">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <WrapPanel/>
@@ -257,8 +291,22 @@
                             </ItemsControl>
                         </Grid>
                         <DataTemplate.Triggers>
-                            <DataTrigger Binding="{Binding Body, Converter={x:Static local:Converters.HasTemplateConverter}}" Value="True">
+                            <!-- Template badge -->
+                            <DataTrigger Binding="{Binding Prompt.Body, Converter={x:Static local:Converters.HasTemplateConverter}}" Value="True">
                                 <Setter TargetName="TemplateBadge" Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                            <!-- Show meta label when long body AND collapsed -->
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsLongBody}" Value="True"/>
+                                    <Condition Binding="{Binding IsExpanded}" Value="False"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter TargetName="MetaLabel" Property="Visibility" Value="Visible"/>
+                            </MultiDataTrigger>
+                            <!-- Expand body preview when expanded -->
+                            <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                <Setter TargetName="BodyPreview" Property="MaxHeight" Value="180"/>
+                                <Setter TargetName="BodyPreview" Property="TextTrimming" Value="None"/>
                             </DataTrigger>
                         </DataTemplate.Triggers>
                     </DataTemplate>

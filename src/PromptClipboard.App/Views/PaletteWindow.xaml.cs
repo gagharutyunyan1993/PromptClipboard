@@ -130,14 +130,14 @@ public partial class PaletteWindow : Window
 
     private void Card_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (sender is FrameworkElement fe && fe.DataContext is Prompt prompt)
+        if (sender is FrameworkElement fe && fe.DataContext is PromptItemViewModel item)
         {
             if (IsButtonClick(e.OriginalSource as DependencyObject))
                 return;
 
-            _log.Debug("Card clicked: prompt={Id}", prompt.Id);
-            ViewModel.SelectedPrompt = prompt;
-            ViewModel.SelectedIndex = ViewModel.Prompts.IndexOf(prompt);
+            _log.Debug("Card clicked: prompt={Id}", item.Prompt.Id);
+            ViewModel.SelectedPrompt = item;
+            ViewModel.SelectedIndex = ViewModel.Prompts.IndexOf(item);
             ViewModel.PasteCommand.Execute(null);
         }
     }
@@ -154,19 +154,19 @@ public partial class PaletteWindow : Window
 
     private void EditButton_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement fe && fe.Tag is Prompt prompt)
+        if (sender is FrameworkElement fe && fe.Tag is PromptItemViewModel item)
         {
-            _log.Debug("EditButton_Click: prompt={Id}", prompt.Id);
-            ViewModel.RaiseEditRequested(prompt);
+            _log.Debug("EditButton_Click: prompt={Id}", item.Prompt.Id);
+            ViewModel.RaiseEditRequested(item.Prompt);
         }
     }
 
     private void CopyButton_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement fe && fe.Tag is Prompt prompt)
+        if (sender is FrameworkElement fe && fe.Tag is PromptItemViewModel item)
         {
-            _log.Debug("CopyButton_Click: prompt={Id}", prompt.Id);
-            ViewModel.RaiseCopyRequested(prompt);
+            _log.Debug("CopyButton_Click: prompt={Id}", item.Prompt.Id);
+            ViewModel.RaiseCopyRequested(item.Prompt);
         }
     }
 

@@ -7,6 +7,7 @@ using PromptClipboard.Domain.Entities;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.InMemory;
+using System.ComponentModel;
 
 public class PaletteViewModelTests
 {
@@ -65,31 +66,31 @@ public class PaletteViewModelTests
     [Fact]
     public void MoveDown_WrapAround()
     {
-        _vm.Prompts.Add(new Prompt { Id = 1, Title = "A", Body = "1" });
-        _vm.Prompts.Add(new Prompt { Id = 2, Title = "B", Body = "2" });
-        _vm.Prompts.Add(new Prompt { Id = 3, Title = "C", Body = "3" });
+        _vm.Prompts.Add(new PromptItemViewModel(new Prompt { Id = 1, Title = "A", Body = "1" }));
+        _vm.Prompts.Add(new PromptItemViewModel(new Prompt { Id = 2, Title = "B", Body = "2" }));
+        _vm.Prompts.Add(new PromptItemViewModel(new Prompt { Id = 3, Title = "C", Body = "3" }));
         _vm.SelectedIndex = 2;
         _vm.SelectedPrompt = _vm.Prompts[2];
 
         _vm.MoveDownCommand.Execute(null);
 
         Assert.Equal(0, _vm.SelectedIndex);
-        Assert.Equal("A", _vm.SelectedPrompt!.Title);
+        Assert.Equal("A", _vm.SelectedPrompt!.Prompt.Title);
     }
 
     [Fact]
     public void MoveUp_WrapAround()
     {
-        _vm.Prompts.Add(new Prompt { Id = 1, Title = "A", Body = "1" });
-        _vm.Prompts.Add(new Prompt { Id = 2, Title = "B", Body = "2" });
-        _vm.Prompts.Add(new Prompt { Id = 3, Title = "C", Body = "3" });
+        _vm.Prompts.Add(new PromptItemViewModel(new Prompt { Id = 1, Title = "A", Body = "1" }));
+        _vm.Prompts.Add(new PromptItemViewModel(new Prompt { Id = 2, Title = "B", Body = "2" }));
+        _vm.Prompts.Add(new PromptItemViewModel(new Prompt { Id = 3, Title = "C", Body = "3" }));
         _vm.SelectedIndex = 0;
         _vm.SelectedPrompt = _vm.Prompts[0];
 
         _vm.MoveUpCommand.Execute(null);
 
         Assert.Equal(2, _vm.SelectedIndex);
-        Assert.Equal("C", _vm.SelectedPrompt!.Title);
+        Assert.Equal("C", _vm.SelectedPrompt!.Prompt.Title);
     }
 
     [Fact]
@@ -106,5 +107,41 @@ public class PaletteViewModelTests
         Assert.Empty(_vm.Prompts);
         _vm.MoveUpCommand.Execute(null);
         // No exception — test passes
+    }
+
+    [Fact]
+    public async Task ToggleExpanded_DoesNotTriggerPaste()
+    {
+        // Arrange: load a long prompt
+        var longBody = string.Join("\n", Enumerable.Range(1, 20).Select(i => $"Line {i}"));
+        _repo.Prompts.Add(new Prompt { Id = 1, Title = "Long", Body = longBody });
+        await _vm.LoadPromptsAsync();
+
+        var pasteFired = false;
+        _vm.PasteRequested += _ => pasteFired = true;
+
+        // Act: toggle expand on the item
+        var item = _vm.Prompts[0];
+        item.ToggleExpandedCommand.Execute(null);
+
+        // Assert: paste was NOT triggered
+        Assert.False(pasteFired);
+        Assert.True(item.IsExpanded);
+    }
+
+    [Fact]
+    public async Task LoadPrompts_ResetsIsExpanded()
+    {
+        var longBody = string.Join("\n", Enumerable.Range(1, 20).Select(i => $"Line {i}"));
+        _repo.Prompts.Add(new Prompt { Id = 1, Title = "Long", Body = longBody });
+        await _vm.LoadPromptsAsync();
+
+        // Expand the item
+        _vm.Prompts[0].IsExpanded = true;
+
+        // Reload — should get fresh PromptItemViewModels with IsExpanded=false
+        await _vm.LoadPromptsAsync();
+
+        Assert.False(_vm.Prompts[0].IsExpanded);
     }
 }

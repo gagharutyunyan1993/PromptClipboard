@@ -20,7 +20,7 @@ public partial class PaletteViewModel : ObservableObject
     private string _searchText = string.Empty;
 
     [ObservableProperty]
-    private Prompt? _selectedPrompt;
+    private PromptItemViewModel? _selectedPrompt;
 
     [ObservableProperty]
     private int _selectedIndex;
@@ -31,7 +31,7 @@ public partial class PaletteViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasTarget;
 
-    public ObservableCollection<Prompt> Prompts { get; } = [];
+    public ObservableCollection<PromptItemViewModel> Prompts { get; } = [];
 
     public event Action<Prompt>? PasteRequested;
     public event Action<Prompt>? PasteAsTextRequested;
@@ -81,7 +81,7 @@ public partial class PaletteViewModel : ObservableObject
         var results = await _searchService.SearchAsync(query ?? SearchText, ct);
         Prompts.Clear();
         foreach (var p in results)
-            Prompts.Add(p);
+            Prompts.Add(new PromptItemViewModel(p));
 
         SelectedIndex = Prompts.Count > 0 ? 0 : -1;
         SelectedPrompt = Prompts.Count > 0 ? Prompts[0] : null;
@@ -107,21 +107,21 @@ public partial class PaletteViewModel : ObservableObject
     private void Paste()
     {
         if (SelectedPrompt != null && !IsPasting)
-            PasteRequested?.Invoke(SelectedPrompt);
+            PasteRequested?.Invoke(SelectedPrompt.Prompt);
     }
 
     [RelayCommand]
     private void PasteAsText()
     {
         if (SelectedPrompt != null && !IsPasting)
-            PasteAsTextRequested?.Invoke(SelectedPrompt);
+            PasteAsTextRequested?.Invoke(SelectedPrompt.Prompt);
     }
 
     [RelayCommand]
     private void OpenEditor()
     {
         if (SelectedPrompt != null)
-            EditRequested?.Invoke(SelectedPrompt);
+            EditRequested?.Invoke(SelectedPrompt.Prompt);
     }
 
     [RelayCommand]
@@ -143,21 +143,21 @@ public partial class PaletteViewModel : ObservableObject
     private void CopyPrompt()
     {
         if (SelectedPrompt != null)
-            CopyRequested?.Invoke(SelectedPrompt);
+            CopyRequested?.Invoke(SelectedPrompt.Prompt);
     }
 
     [RelayCommand]
-    private void TogglePin(Prompt? prompt)
+    private void TogglePin(PromptItemViewModel? item)
     {
-        if (prompt != null)
-            PinToggleRequested?.Invoke(prompt);
+        if (item != null)
+            PinToggleRequested?.Invoke(item.Prompt);
     }
 
     [RelayCommand]
-    private void DeletePrompt(Prompt? prompt)
+    private void DeletePrompt(PromptItemViewModel? item)
     {
-        if (prompt != null)
-            DeleteRequested?.Invoke(prompt);
+        if (item != null)
+            DeleteRequested?.Invoke(item.Prompt);
     }
 
     public void RaiseEditRequested(Prompt prompt) => EditRequested?.Invoke(prompt);

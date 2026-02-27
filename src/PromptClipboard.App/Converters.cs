@@ -14,6 +14,7 @@ public static class Converters
     public static IValueConverter BoolToPinColorConverter { get; } = new BoolToPinColorConverterImpl();
     public static IValueConverter StringEmptyToVisibleConverter { get; } = new StringEmptyToVisibleConverterImpl();
     public static IValueConverter InverseBoolToVisibilityConverter { get; } = new InverseBoolToVisibilityConverterImpl();
+    public static IValueConverter BoolToVisibilityConverter { get; } = new BoolToVisibilityConverterImpl();
 
     private sealed class HasTemplateVariablesConverter : IValueConverter
     {
@@ -87,6 +88,15 @@ public static class Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
             => value is true ? Visibility.Collapsed : Visibility.Visible;
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    private sealed class BoolToVisibilityConverterImpl : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            => value is true ? Visibility.Visible : Visibility.Collapsed;
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
             => throw new NotImplementedException();
