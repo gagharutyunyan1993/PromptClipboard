@@ -1,9 +1,10 @@
 [Setup]
+AppId={{E00E09A7-86E8-4DA4-A1B7-91D38A8577A5}
 AppName=Prompt Clipboard
 AppVersion={#AppVersion}
 AppPublisher=PromptClipboard
 AppPublisherURL=https://github.com/gagharutyunyan1993/PromptClipboard
-DefaultDirName={autopf}\PromptClipboard
+DefaultDirName={localappdata}\Programs\PromptClipboard
 DefaultGroupName=Prompt Clipboard
 UninstallDisplayIcon={app}\PromptClipboard.App.exe
 OutputDir=..\artifacts
@@ -14,9 +15,10 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 SetupIconFile=..\src\PromptClipboard.App\Resources\app.ico
 PrivilegesRequired=lowest
-PrivilegesRequiredOverridesAllowed=dialog
+PrivilegesRequiredOverridesAllowed=none
 WizardStyle=modern
 DisableProgramGroupPage=yes
+DisableDirPage=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

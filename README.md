@@ -61,8 +61,9 @@
 ### Installer (recommended)
 
 1. Download `PromptClipboard-*-x64-setup.exe` from [Releases](../../releases)
-2. Run the installer
-3. Find "Prompt Clipboard" in the Start menu
+2. Run the installer (no administrator rights required)
+3. Installed to `%LOCALAPPDATA%\Programs\PromptClipboard`
+4. Find "Prompt Clipboard" in the Start menu
 
 ### Portable (no install)
 
