@@ -26,6 +26,7 @@ public partial class App : System.Windows.Application
     private ILogger? _log;
     private Mutex? _singleInstanceMutex;
     private bool _ownsMutex;
+    private System.Windows.Controls.MenuItem? _updateMenuItem;
 
     private static readonly string AppDataPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -126,6 +127,20 @@ public partial class App : System.Windows.Application
             // Tray icon
             SetupTrayIcon();
 
+            // Auto-update: check if a previously downloaded update is pending
+            var updateService = _services.GetRequiredService<IUpdateService>();
+            if (updateService.IsUpdateReady)
+            {
+                ShowUpdateMenuItem(updateService.PendingVersion);
+            }
+
+            // Background update check after 5s delay
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(5));
+                await CheckForUpdatesAsync();
+            });
+
             _log.Information("=== Prompt Clipboard started successfully ===");
         }
         catch (Exception ex)
@@ -192,6 +207,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IClipboardService, Win32ClipboardService>();
         services.AddSingleton<IWindowPositioner, Win32WindowPositioner>();
         services.AddSingleton<IntegrityLevelChecker>();
+        services.AddSingleton<IUpdateService, VelopackUpdateService>();
         services.AddSingleton<PastePromptUseCase>();
         services.AddSingleton<PaletteViewModel>();
     }
@@ -420,6 +436,67 @@ public partial class App : System.Windows.Application
         {
             _log?.Error(ex, "OnDeleteRequested failed for prompt {Id}", prompt.Id);
         }
+    }
+
+    // ── Auto-Update ──────────────────────────────────────────────────
+
+    private async Task CheckForUpdatesAsync()
+    {
+        try
+        {
+            var settingsService = _services!.GetRequiredService<ISettingsService>();
+            var appSettings = settingsService.Load();
+
+            // Rate limit: at most once per 24h
+            if (appSettings.LastUpdateCheckUtc.HasValue &&
+                DateTime.UtcNow - appSettings.LastUpdateCheckUtc.Value < TimeSpan.FromHours(24))
+            {
+                _log?.Debug("Skipping update check (last check < 24h ago)");
+                return;
+            }
+
+            var updateService = _services!.GetRequiredService<IUpdateService>();
+            var version = await updateService.CheckAndDownloadAsync();
+
+            appSettings.LastUpdateCheckUtc = DateTime.UtcNow;
+            settingsService.Save(appSettings);
+
+            if (version != null)
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    ShowUpdateMenuItem(version);
+                    _trayIcon?.ShowBalloonTip(
+                        "Prompt Clipboard",
+                        $"Update v{version} ready — right-click tray icon to restart",
+                        BalloonIcon.Info);
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _log?.Warning(ex, "Background update check failed");
+        }
+    }
+
+    private void ShowUpdateMenuItem(string? version)
+    {
+        if (_trayIcon?.ContextMenu == null || _updateMenuItem != null) return;
+
+        var label = string.IsNullOrEmpty(version)
+            ? "Update available — restart to apply"
+            : $"Update v{version} — restart to apply";
+
+        _updateMenuItem = new System.Windows.Controls.MenuItem { Header = label, FontWeight = FontWeights.Bold };
+        _updateMenuItem.Click += (_, _) =>
+        {
+            var updateService = _services?.GetRequiredService<IUpdateService>();
+            updateService?.ApplyAndRestart();
+        };
+
+        // Insert at the top of the context menu
+        _trayIcon.ContextMenu.Items.Insert(0, _updateMenuItem);
+        _trayIcon.ContextMenu.Items.Insert(1, new System.Windows.Controls.Separator());
     }
 
     // ── Shutdown ───────────────────────────────────────────────────────

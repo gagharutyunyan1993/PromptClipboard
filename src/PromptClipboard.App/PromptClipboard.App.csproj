@@ -8,7 +8,13 @@
     <Product>Prompt Clipboard</Product>
     <AssemblyTitle>Prompt Clipboard</AssemblyTitle>
     <Description>Prompt manager with quick global hotkey access</Description>
+    <StartupObject>PromptClipboard.App.Program</StartupObject>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ApplicationDefinition Remove="App.xaml" />
+    <Page Include="App.xaml" />
+  </ItemGroup>
 
   <ItemGroup>
     <Resource Include="Resources\app.ico" />
@@ -21,6 +27,7 @@
     <PackageReference Include="Serilog" Version="4.2.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Velopack" Version="0.0.1298" />
   </ItemGroup>
 
   <ItemGroup>

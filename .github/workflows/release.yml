@@ -43,41 +43,64 @@ jobs:
 
       - name: Extract version from tag
         id: version
-        shell: bash
+        shell: pwsh
         run: |
-          TAG="${GITHUB_REF#refs/tags/v}"
-          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Tag must be in format v#.#.# (e.g. v1.0.0)"
+          $tag = "${{ github.ref_name }}" -replace '^v', ''
+          if ($tag -notmatch '^\d+\.\d+\.\d+$') {
+            Write-Error "Tag must be in format v#.#.# (e.g. v1.0.0)"
             exit 1
-          fi
-          echo "version=${TAG}" >> "$GITHUB_OUTPUT"
+          }
+          "version=$tag" | Out-File -Append $env:GITHUB_OUTPUT
+
+      - name: Install vpk CLI
+        run: dotnet tool install -g vpk --version 0.0.1298
+
+      - name: Add dotnet tools to PATH
+        shell: pwsh
+        run: Add-Content $env:GITHUB_PATH "$env:USERPROFILE\.dotnet\tools"
 
       - name: Publish app
+        shell: pwsh
         run: |
           dotnet publish src/PromptClipboard.App/PromptClipboard.App.csproj `
-            -c Release `
-            -r win-x64 `
-            --self-contained `
+            -c Release -r win-x64 --self-contained `
             -o artifacts/publish `
             -p:PublishSingleFile=false `
             -p:DebugType=none `
-            -p:DebugSymbols=false
+            -p:DebugSymbols=false `
+            -p:Version="${{ steps.version.outputs.version }}"
 
-      - name: Create portable zip
+      - name: Download previous releases (for delta generation)
         shell: pwsh
         run: |
-          Compress-Archive -Path "artifacts/publish/*" -DestinationPath "artifacts/PromptClipboard-${{ steps.version.outputs.version }}-portable-x64.zip"
+          vpk download github `
+            --repoUrl "https://github.com/${{ github.repository }}" `
+            --token "${{ secrets.GITHUB_TOKEN }}" `
+            --outputDir artifacts/velopack
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "No previous releases (first release?) — skipping delta"
+            $global:LASTEXITCODE = 0
+          }
 
-      - name: Create installer
+      - name: Create Velopack packages
         shell: pwsh
         run: |
-          iscc /DAppVersion="${{ steps.version.outputs.version }}" packaging/installer.iss
+          vpk pack `
+            --packId PromptClipboard `
+            --packVersion "${{ steps.version.outputs.version }}" `
+            --packDir artifacts/publish `
+            --mainExe PromptClipboard.App.exe `
+            --icon src/PromptClipboard.App/Resources/app.ico `
+            --outputDir artifacts/velopack
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: Prompt Clipboard v${{ steps.version.outputs.version }}
-          generate_release_notes: true
-          files: |
-            artifacts/PromptClipboard-${{ steps.version.outputs.version }}-portable-x64.zip
-            artifacts/PromptClipboard-${{ steps.version.outputs.version }}-x64-setup.exe
+      - name: Upload to GitHub Release
+        shell: pwsh
+        run: |
+          vpk upload github `
+            --repoUrl "https://github.com/${{ github.repository }}" `
+            --token "${{ secrets.GITHUB_TOKEN }}" `
+            --outputDir artifacts/velopack `
+            --publish `
+            --releaseName "Prompt Clipboard v${{ steps.version.outputs.version }}" `
+            --tag "v${{ steps.version.outputs.version }}" `
+            --merge

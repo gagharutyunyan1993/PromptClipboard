@@ -58,23 +58,26 @@
 
 ## Installation
 
-### Installer (recommended)
+### Setup (recommended)
 
-1. Download `PromptClipboard-*-x64-setup.exe` from [Releases](../../releases)
-2. Run the installer (no administrator rights required)
-3. Installed to `%LOCALAPPDATA%\Programs\PromptClipboard`
-4. Find "Prompt Clipboard" in the Start menu
+1. Download `PromptClipboard-Setup.exe` from [Releases](../../releases)
+2. Run it — one-click install, no admin required
+3. Installed to `%LOCALAPPDATA%\PromptClipboard`
+4. Auto-updates are checked on startup; update prompt appears in the system tray
 
-### Portable (no install)
+### Portable
 
-1. Download `PromptClipboard-*-portable-x64.zip` from [Releases](../../releases)
+1. Download `PromptClipboard-Portable.zip` from [Releases](../../releases)
 2. Extract anywhere
 3. Run `PromptClipboard.App.exe`
+4. Self-updating — updates are downloaded and applied automatically
+
+> **Upgrading from a previous version?** Uninstall the old version first via Windows Settings > Apps, then install fresh. Your data (prompts, settings) is preserved.
 
 ### Requirements
 
 - Windows 10 version 1809+ / Windows 11
-- .NET 8 Desktop Runtime (bundled in MSIX and portable builds)
+- .NET 8 Desktop Runtime (bundled in self-contained builds)
 
 ## Usage
 

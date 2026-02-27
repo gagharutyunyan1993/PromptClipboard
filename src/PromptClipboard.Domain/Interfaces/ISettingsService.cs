@@ -9,6 +9,7 @@ public class AppSettings
     public bool AutoStart { get; set; }
     public int PasteDelayMs { get; set; } = 50;
     public int RestoreDelayMs { get; set; } = 150;
+    public DateTime? LastUpdateCheckUtc { get; set; }
 }
 
 public interface ISettingsService
