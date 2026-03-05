@@ -568,7 +568,8 @@
                 </ListBox.ItemContainerStyle>
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <Grid MouseLeftButtonUp="Card_MouseLeftButtonUp">
+                        <Grid MouseLeftButtonUp="Card_MouseLeftButtonUp"
+                              MouseLeftButtonDown="Card_MouseLeftButtonDown">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>

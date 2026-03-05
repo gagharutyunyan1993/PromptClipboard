@@ -182,6 +182,24 @@ public partial class PaletteWindow : Window
         }
     }
 
+    private void Card_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.DataContext is PromptItemViewModel item)
+        {
+            if (IsButtonClick(e.OriginalSource as DependencyObject))
+                return;
+
+            if (e.ClickCount >= 2)
+            {
+                _log.Debug("Card double-clicked: prompt={Id}", item.Prompt.Id);
+                ViewModel.SelectedPrompt = item;
+                ViewModel.SelectedIndex = ViewModel.Prompts.IndexOf(item);
+                ViewModel.PasteCommand.Execute(null);
+                e.Handled = true;
+            }
+        }
+    }
+
     private void Card_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (sender is FrameworkElement fe && fe.DataContext is PromptItemViewModel item)
@@ -189,12 +207,9 @@ public partial class PaletteWindow : Window
             if (IsButtonClick(e.OriginalSource as DependencyObject))
                 return;
 
-            _log.Debug("Card clicked: prompt={Id}, clicks={Count}", item.Prompt.Id, e.ClickCount);
+            _log.Debug("Card clicked: prompt={Id}", item.Prompt.Id);
             ViewModel.SelectedPrompt = item;
             ViewModel.SelectedIndex = ViewModel.Prompts.IndexOf(item);
-
-            if (e.ClickCount >= 2)
-                ViewModel.PasteCommand.Execute(null);
         }
     }
 
