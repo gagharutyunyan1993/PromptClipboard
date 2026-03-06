@@ -10,5 +10,6 @@
   <PropertyGroup Condition="'$(CollectCoverage)' == 'true'">
     <ExcludeByAttribute>GeneratedCodeAttribute</ExcludeByAttribute>
     <ExcludeByFile>**/obj/**/*.cs</ExcludeByFile>
+    <Exclude>[Hardcodet.*]*</Exclude>
   </PropertyGroup>
 </Project>
