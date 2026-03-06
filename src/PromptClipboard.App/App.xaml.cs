@@ -558,14 +558,6 @@ public partial class App : System.Windows.Application
             var settingsService = _services!.GetRequiredService<ISettingsService>();
             var appSettings = settingsService.Load();
 
-            // Rate limit: at most once per 24h
-            if (appSettings.LastUpdateCheckUtc.HasValue &&
-                DateTime.UtcNow - appSettings.LastUpdateCheckUtc.Value < TimeSpan.FromHours(24))
-            {
-                _log?.Debug("Skipping update check (last check < 24h ago)");
-                return;
-            }
-
             var updateService = _services!.GetRequiredService<IUpdateService>();
             var version = await updateService.CheckAndDownloadAsync();
 
