@@ -44,6 +44,7 @@ jobs:
           retention-days: 7
 
   visual-and-e2e:
+    if: false # disabled — no self-hosted runner configured yet
     runs-on: self-hosted-windows-interactive
     timeout-minutes: 30
 
