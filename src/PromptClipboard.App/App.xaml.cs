@@ -151,6 +151,11 @@ public partial class App : System.Windows.Application
             paletteVm.CopyRequested += OnCopyRequested;
             paletteVm.PinToggleRequested += OnPinToggleRequested;
             paletteVm.DeleteRequested += OnDeleteRequested;
+            paletteVm.UpdateRequested += () =>
+            {
+                var svc = _services!.GetRequiredService<IUpdateService>();
+                svc.ApplyAndRestart();
+            };
 
             // Hotkey
             _hotkeyService = _services.GetRequiredService<Win32HotkeyService>();
@@ -184,6 +189,7 @@ public partial class App : System.Windows.Application
             if (updateService.IsUpdateReady)
             {
                 ShowUpdateMenuItem(updateService.PendingVersion);
+                paletteVm.UpdateVersion = updateService.PendingVersion;
             }
 
             // Background update check after 5s delay
@@ -584,6 +590,11 @@ public partial class App : System.Windows.Application
 
     private void ShowUpdateMenuItem(string? version)
     {
+        if (_paletteWindow is not null)
+        {
+            _paletteWindow.ViewModel.UpdateVersion = version;
+        }
+
         if (_trayIcon?.ContextMenu == null || _updateMenuItem != null) return;
 
         var label = string.IsNullOrEmpty(version)

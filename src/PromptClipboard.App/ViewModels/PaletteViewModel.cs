@@ -70,6 +70,9 @@ public partial class PaletteViewModel : ObservableObject
     [ObservableProperty]
     private bool _isFilterTemplates;
 
+    [ObservableProperty]
+    private string? _updateVersion;
+
     public ObservableCollection<PromptItemViewModel> Prompts { get; } = [];
 
     public int ResultCount => Prompts.Count;
@@ -109,6 +112,8 @@ public partial class PaletteViewModel : ObservableObject
     public bool ShowRevealedPrompt => RevealedPrompt != null;
 
     public QuickAddViewModel? QuickAdd { get; private set; }
+
+    public event Action? UpdateRequested;
 
     public event Action<Prompt>? PasteRequested;
     public event Action<Prompt>? PasteAsTextRequested;
@@ -346,6 +351,9 @@ public partial class PaletteViewModel : ObservableObject
         OnPropertyChanged(nameof(TransientLoadError));
         OnPropertyChanged(nameof(ShowLoadError));
     }
+
+    [RelayCommand]
+    private void RequestUpdate() => UpdateRequested?.Invoke();
 
     [RelayCommand]
     private void CreateWithTitle()

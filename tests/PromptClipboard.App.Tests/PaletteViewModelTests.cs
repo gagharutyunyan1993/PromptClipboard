@@ -584,6 +584,24 @@ public class PaletteViewModelTests
     }
 
     [Fact]
+    public void RequestUpdateCommand_RaisesUpdateRequested()
+    {
+        var fired = false;
+        _vm.UpdateRequested += () => fired = true;
+
+        _vm.RequestUpdateCommand.Execute(null);
+
+        Assert.True(fired);
+    }
+
+    [Fact]
+    public void RequestUpdateCommand_DoesNotThrow_WhenNoSubscribers()
+    {
+        var ex = Record.Exception(() => _vm.RequestUpdateCommand.Execute(null));
+        Assert.Null(ex);
+    }
+
+    [Fact]
     public void QuickAdd_EnterPrefillsFromSearchDSL()
     {
         var log = new LoggerConfiguration().CreateLogger();
