@@ -1,5 +1,6 @@
 namespace PromptClipboard.App.Views;
 
+using PromptClipboard.App.Routing;
 using PromptClipboard.App.ViewModels;
 using PromptClipboard.Domain.Entities;
 using System.ComponentModel;
@@ -99,85 +100,61 @@ public partial class PaletteWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        var isQuickAdd = ViewModel.Mode == PaletteMode.QuickAdd;
+        var input = new KeyInput(
+            e.Key,
+            Keyboard.Modifiers,
+            ViewModel.Mode == PaletteMode.QuickAdd,
+            ViewModel.ShowRevealedPrompt);
 
-        switch (e.Key)
+        var result = PaletteKeyboardRouter.Route(input);
+        e.Handled = result.Handled;
+
+        switch (result.Action)
         {
-            case Key.Down when isQuickAdd:
-            case Key.Up when isQuickAdd:
-                return; // let arrows work in multi-line Body TextBox
-
-            case Key.Down when ViewModel.ShowRevealedPrompt:
+            case KeyRoutingAction.MoveDown:
+                ViewModel.MoveDownCommand.Execute(null);
+                break;
+            case KeyRoutingAction.MoveUp:
+                ViewModel.MoveUpCommand.Execute(null);
+                break;
+            case KeyRoutingAction.RevealDown:
                 if (ViewModel.Prompts.Count > 0)
                 {
                     ViewModel.SelectedIndex = 0;
                     ViewModel.SelectedPrompt = ViewModel.Prompts[0];
                 }
-                e.Handled = true;
                 break;
-            case Key.Up when ViewModel.ShowRevealedPrompt:
+            case KeyRoutingAction.RevealUp:
                 if (ViewModel.Prompts.Count > 0)
                 {
                     var last = ViewModel.Prompts.Count - 1;
                     ViewModel.SelectedIndex = last;
                     ViewModel.SelectedPrompt = ViewModel.Prompts[last];
                 }
-                e.Handled = true;
                 break;
-            case Key.Down:
-                ViewModel.MoveDownCommand.Execute(null);
-                e.Handled = true;
-                break;
-            case Key.Up:
-                ViewModel.MoveUpCommand.Execute(null);
-                e.Handled = true;
-                break;
-
-            case Key.Enter when Keyboard.Modifiers == ModifierKeys.Alt:
-                if (!isQuickAdd) ViewModel.OpenEditorCommand.Execute(null);
-                e.Handled = true;
-                break;
-            case Key.Enter when Keyboard.Modifiers == ModifierKeys.Control:
-                if (isQuickAdd)
-                    ViewModel.QuickAdd?.SaveCommand.Execute(null);
-                else
-                    ViewModel.PasteAsTextCommand.Execute(null);
-                e.Handled = true;
-                break;
-            case Key.Enter when Keyboard.Modifiers == ModifierKeys.None:
-                if (isQuickAdd)
-                    return; // let Enter reach TextBox (AcceptsReturn=True)
+            case KeyRoutingAction.Paste:
                 ViewModel.PasteCommand.Execute(null);
-                e.Handled = true;
                 break;
-
-            case Key.S when Keyboard.Modifiers == ModifierKeys.Control:
-                if (isQuickAdd)
-                {
-                    ViewModel.QuickAdd?.SaveCommand.Execute(null);
-                    e.Handled = true;
-                }
+            case KeyRoutingAction.PasteAsText:
+                ViewModel.PasteAsTextCommand.Execute(null);
                 break;
-
-            case Key.Escape:
+            case KeyRoutingAction.OpenEditor:
+                ViewModel.OpenEditorCommand.Execute(null);
+                break;
+            case KeyRoutingAction.HandleEscape:
                 ViewModel.HandleEscapeCommand.Execute(null);
-                e.Handled = true;
                 break;
-
-            // Ctrl+N = inline QuickAdd (P2)
-            case Key.N when Keyboard.Modifiers == ModifierKeys.Control:
+            case KeyRoutingAction.EnterQuickAdd:
                 ViewModel.EnterQuickAddCommand.Execute(null);
-                e.Handled = true;
                 break;
-            // Ctrl+Alt+N = always full editor
-            case Key.N when Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Alt):
+            case KeyRoutingAction.Create:
                 ViewModel.CreateCommand.Execute(null);
-                e.Handled = true;
                 break;
-            // Ctrl+Shift+N = full editor with prefill from search DSL
-            case Key.N when Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift):
+            case KeyRoutingAction.CreateWithTitle:
                 ViewModel.CreateWithTitleCommand.Execute(null);
-                e.Handled = true;
+                break;
+            case KeyRoutingAction.QuickAddSave:
+                ViewModel.QuickAdd?.SaveCommand.Execute(null);
                 break;
         }
     }
@@ -186,10 +163,10 @@ public partial class PaletteWindow : Window
     {
         if (sender is FrameworkElement fe && fe.DataContext is PromptItemViewModel item)
         {
-            if (IsButtonClick(e.OriginalSource as DependencyObject))
-                return;
+            var action = PaletteClickRouter.RouteMouseDown(
+                e.ClickCount, IsButtonClick(e.OriginalSource as DependencyObject));
 
-            if (e.ClickCount >= 2)
+            if (action == ClickRoutingAction.SelectAndPaste)
             {
                 _log.Debug("Card double-clicked: prompt={Id}", item.Prompt.Id);
                 ViewModel.SelectedPrompt = item;
@@ -204,12 +181,15 @@ public partial class PaletteWindow : Window
     {
         if (sender is FrameworkElement fe && fe.DataContext is PromptItemViewModel item)
         {
-            if (IsButtonClick(e.OriginalSource as DependencyObject))
-                return;
+            var action = PaletteClickRouter.RouteMouseUp(
+                IsButtonClick(e.OriginalSource as DependencyObject));
 
-            _log.Debug("Card clicked: prompt={Id}", item.Prompt.Id);
-            ViewModel.SelectedPrompt = item;
-            ViewModel.SelectedIndex = ViewModel.Prompts.IndexOf(item);
+            if (action == ClickRoutingAction.Select)
+            {
+                _log.Debug("Card clicked: prompt={Id}", item.Prompt.Id);
+                ViewModel.SelectedPrompt = item;
+                ViewModel.SelectedIndex = ViewModel.Prompts.IndexOf(item);
+            }
         }
     }
 
